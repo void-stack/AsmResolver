@@ -105,6 +105,27 @@ namespace AsmResolver.DotNet.Serialized
             return null;
         }
 
+        internal bool TryGetOriginalFieldRva(out ISegmentReference? data)
+        {
+            data = null;
+
+            var tablesStream = _context.Streams.TablesStream;
+            if (tablesStream is null)
+                return false;
+
+            // Do not resolve the blob here. Some protected assemblies deliberately use non-standard FieldRVA data;
+            // the builder only needs the original segment reference to retain the metadata row.
+            uint rid = _context.ParentModule.GetFieldRvaRid(MetadataToken);
+            if (rid == 0
+                || !tablesStream.GetTable<FieldRvaRow>(TableIndex.FieldRva).TryGetByRid(rid, out var row))
+            {
+                return false;
+            }
+
+            data = row.Data;
+            return true;
+        }
+
         /// <inheritdoc />
         protected override int? GetFieldOffset()
         {

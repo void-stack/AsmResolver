@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using AsmResolver.DotNet.Code;
+using AsmResolver.DotNet.Serialized;
 using AsmResolver.PE.DotNet.Metadata.Tables;
 
 namespace AsmResolver.DotNet.Builder
@@ -605,14 +606,26 @@ namespace AsmResolver.DotNet.Builder
 
         private void AddFieldRva(MetadataToken ownerToken, FieldDefinition field)
         {
+            var data = field.FieldRva?.ToReference();
+
+            // VMProtect can emit FieldRVA rows whose data cannot be decoded by the configured field-data reader.
+            // Preserve the original RVA in that case: omitting the row produces invalid metadata and prevents the
+            // protected module from initializing.
+            if (data is null
+                && field is SerializedFieldDefinition serializedField
+                && serializedField.TryGetOriginalFieldRva(out var originalData))
+            {
+                data = originalData;
+            }
+
             // Don't emit any field rva rows if no initial data was specified.
-            if (field.FieldRva is null)
+            if (data is null)
                 return;
 
             var table = Metadata.TablesStream.GetSortedTable<FieldDefinition, FieldRvaRow>(TableIndex.FieldRva);
 
             var row = new FieldRvaRow(
-                field.FieldRva.ToReference(),
+                data,
                 ownerToken.Rid);
 
             table.Add(field, row);

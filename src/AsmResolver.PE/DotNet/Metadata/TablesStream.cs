@@ -317,14 +317,15 @@ namespace AsmResolver.PE.DotNet.Metadata
         {
             SynchronizeTableLayoutsWithFlags();
             ulong validBitmask = ComputeValidBitmask();
+            // The optional ExtraData field is a 4-byte value. No trailing padding field belongs to a #~ stream;
+            // reporting one corrupts the following metadata layout in protected assemblies.
             return (uint) (sizeof(uint)
                            + 4 * sizeof(byte)
                            + sizeof(ulong)
                            + sizeof(ulong)
                            + GetTablesCount(validBitmask) * sizeof(uint)
-                           + (HasExtraData ? sizeof(ulong) : 0)
-                           + GetTablesSize(validBitmask))
-                           + sizeof(uint);
+                           + (HasExtraData ? sizeof(uint) : 0)
+                           + GetTablesSize(validBitmask));
         }
 
         /// <inheritdoc />
@@ -347,8 +348,6 @@ namespace AsmResolver.PE.DotNet.Metadata
                 writer.WriteUInt32(ExtraData);
 
             WriteTables(writer, validBitmask);
-
-            writer.WriteUInt32(0);
         }
 
         /// <summary>
